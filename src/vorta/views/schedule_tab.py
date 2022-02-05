@@ -1,7 +1,10 @@
-from PyQt5 import uic, QtCore
-from PyQt5.QtWidgets import QListWidgetItem, QApplication, QTableView, QHeaderView, QTableWidgetItem
+from PyQt5 import QtCore, uic
+from PyQt5.QtWidgets import (QApplication, QHeaderView, QListWidgetItem,
+                             QTableView, QTableWidgetItem)
+
+from vorta.store.models import (BackupProfileMixin, EventLogModel,
+                                WifiSettingModel)
 from vorta.utils import get_asset, get_sorted_wifis
-from vorta.store.models import EventLogModel, WifiSettingModel, BackupProfileMixin
 from vorta.views.utils import get_colored_icon
 
 uifile = get_asset('UI/scheduletab.ui')
@@ -79,6 +82,9 @@ class ScheduleTab(ScheduleBase, ScheduleUI, BackupProfileMixin):
 
         # Connect to schedule update
         self.app.scheduler.schedule_changed.connect(lambda pid: self.draw_next_scheduled_backup())
+
+        # Connect to palette change
+        self.app.paletteChanged.connect(lambda p: self.set_icons())
 
     def on_scheduler_change(self, _):
         profile = self.profile()

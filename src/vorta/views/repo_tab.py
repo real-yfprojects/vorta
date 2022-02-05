@@ -1,10 +1,11 @@
 import os
 
-from PyQt5 import uic, QtCore
+from PyQt5 import QtCore, uic
 from PyQt5.QtWidgets import QApplication, QMessageBox
 
-from vorta.store.models import RepoModel, ArchiveModel, BackupProfileMixin
-from vorta.utils import pretty_bytes, get_private_keys, get_asset, borg_compat
+from vorta.store.models import ArchiveModel, BackupProfileMixin, RepoModel
+from vorta.utils import borg_compat, get_asset, get_private_keys, pretty_bytes
+
 from .repo_add_dialog import AddRepoWindow, ExistingRepoWindow
 from .ssh_dialog import SSHAddWindow
 from .utils import get_colored_icon
@@ -58,6 +59,9 @@ class RepoTab(RepoBase, RepoUI, BackupProfileMixin):
         self.init_repo_stats()
         self.populate_from_profile()
         self.set_icons()
+
+        # Connect to palette change
+        QApplication.instance().paletteChanged.connect(lambda p: self.set_icons())
 
     def set_icons(self):
         self.repoRemoveToolbutton.setIcon(get_colored_icon('unlink'))
