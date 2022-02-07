@@ -7,8 +7,8 @@ from PyQt5.QtCore import Qt, QVariant
 from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import QHeaderView
 
-from vorta.utils import (get_asset, get_dict_from_list, nested_dict, uses_dark_mode)
-
+from vorta.utils import (get_asset, get_dict_from_list, nested_dict,
+                         uses_dark_mode)
 from vorta.views.partials.tree_view import TreeModel
 
 uifile = get_asset('UI/diffresult.ui')
