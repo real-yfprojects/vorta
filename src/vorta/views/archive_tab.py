@@ -4,30 +4,29 @@ from datetime import timedelta
 
 from PyQt5 import QtCore, uic
 from PyQt5.QtGui import QDesktopServices
-from PyQt5.QtWidgets import (QHeaderView, QMessageBox, QTableView,
-                             QTableWidgetItem, QInputDialog, QMenu,
-                             QToolButton)
+from PyQt5.QtWidgets import (QHeaderView, QInputDialog, QMenu, QMessageBox,
+                             QTableView, QTableWidgetItem, QToolButton)
 
 from vorta.borg.check import BorgCheckJob
 from vorta.borg.compact import BorgCompactJob
 from vorta.borg.delete import BorgDeleteJob
 from vorta.borg.diff import BorgDiffJob
 from vorta.borg.extract import BorgExtractJob
+from vorta.borg.info_archive import BorgInfoArchiveJob
 from vorta.borg.list_archive import BorgListArchiveJob
 from vorta.borg.list_repo import BorgListRepoJob
-from vorta.borg.info_archive import BorgInfoArchiveJob
 from vorta.borg.mount import BorgMountJob
 from vorta.borg.prune import BorgPruneJob
-from vorta.borg.umount import BorgUmountJob
 from vorta.borg.rename import BorgRenameJob
+from vorta.borg.umount import BorgUmountJob
 from vorta.i18n import trans_late
 from vorta.store.models import ArchiveModel, BackupProfileMixin
 from vorta.utils import (choose_file_dialog, format_archive_name, get_asset,
                          get_mount_points, pretty_bytes)
-from vorta.views.source_tab import SizeItem
 from vorta.views.diff_dialog import DiffDialog
-from vorta.views.diff_result import DiffResult
+from vorta.views.diff_result import DiffResultDialog
 from vorta.views.extract_dialog import ExtractDialog
+from vorta.views.source_tab import SizeItem
 from vorta.views.utils import get_colored_icon
 
 uifile = get_asset('UI/archivetab.ui')
@@ -535,7 +534,7 @@ class ArchiveTab(ArchiveTabBase, ArchiveTabUI, BackupProfileMixin):
         if result['returncode'] == 0:
             archive_newer = ArchiveModel.get(name=result['params']['archive_name_newer'])
             archive_older = ArchiveModel.get(name=result['params']['archive_name_older'])
-            window = DiffResult(result['data'], archive_newer, archive_older, result['params']['json_lines'])
+            window = DiffResultDialog(result['data'], archive_newer, archive_older, result['params']['json_lines'])
             self._toggle_all_buttons(True)
             window.setParent(self, QtCore.Qt.Sheet)
             self._resultwindow = window  # for testing
