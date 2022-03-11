@@ -28,7 +28,7 @@ from vorta.store.models import ArchiveModel, BackupProfileMixin
 from vorta.utils import (choose_file_dialog, format_archive_name, get_asset,
                          get_mount_points, pretty_bytes)
 from vorta.views.diff_dialog import DiffDialog
-from vorta.views.diff_result import DiffResult
+from vorta.views.diff_result import DiffResultDialog
 from vorta.views.extract_dialog import ExtractDialog
 from vorta.views.source_tab import SizeItem
 from vorta.views.utils import get_colored_icon
@@ -770,7 +770,7 @@ class ArchiveTab(ArchiveTabBase, ArchiveTabUI, BackupProfileMixin):
         if result['returncode'] == 0:
             archive_newer = ArchiveModel.get(name=result['params']['archive_name_newer'])
             archive_older = ArchiveModel.get(name=result['params']['archive_name_older'])
-            window = DiffResult(result['data'], archive_newer, archive_older, result['params']['json_lines'])
+            window = DiffResultDialog(result['data'], archive_newer, archive_older, result['params']['json_lines'])
             self._toggle_all_buttons(True)
             window.setParent(self, QtCore.Qt.Sheet)
             self._resultwindow = window  # for testing

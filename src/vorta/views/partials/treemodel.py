@@ -763,9 +763,9 @@ class FileTreeModel(QAbstractItemModel, Generic[T]):
             # combine items with a single child with the child
             while (len(parent_item.children) == 1
                    and self._simplify_filter(parent_item)):
-                parent_item = parent_item._parent
                 if parent_item is self.root:
                     break
+                parent_item = parent_item._parent
 
         if parent_item is self.root:
             # Never return root item since it shouldn't be displayed
