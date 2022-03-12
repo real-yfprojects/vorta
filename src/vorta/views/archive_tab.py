@@ -775,7 +775,9 @@ class ArchiveTab(ArchiveTabBase, ArchiveTabUI, BackupProfileMixin):
             archive_older = ArchiveModel.get(name=result['params']['archive_name_older'])
             window = DiffResultDialog(result['data'], archive_newer, archive_older, result['params']['json_lines'])
             self._toggle_all_buttons(True)
-            window.setParent(self, QtCore.Qt.Sheet)
+            window.setParent(self)
+            window.setWindowFlags(Qt.WindowType.Window)
+            window.setWindowModality(Qt.WindowModality.NonModal)
             self._resultwindow = window  # for testing
             window.show()
 
