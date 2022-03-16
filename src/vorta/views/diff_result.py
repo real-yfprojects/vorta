@@ -641,8 +641,9 @@ class DiffTree(FileTreeModel[DiffData]):
 
         Allows simplification only for unchanged items.
         """
-        if not item.data:
-            return True
+        for child in item.children:
+            if child.data.change_type != ChangeType.NONE:
+                return False
 
         if item.data.change_type == ChangeType.NONE:
             return True
