@@ -773,18 +773,20 @@ class FileTreeModel(QAbstractItemModel, Generic[T]):
         else:
             parent_item = parent.internalPointer()
 
-        item = list(parent_item.children)[row]
+        children = list(parent_item.children)
+
+        if not (0 <= row < len(parent_item.children)
+                and 0 <= column < self.columnCount(parent)):
+            return QModelIndex()
+
+        item = children[row]
 
         if self.mode == self.DisplayMode.SIMPLIFIED_TREE:
             # combine items with a single child with that child
             while len(item.children) == 1 and self._simplify_filter(item):
                 item = item.children[0]
 
-        if (0 <= row < len(parent_item.children)
-                and 0 <= column < self.columnCount(parent)):
-            return self.createIndex(row, column, item)
-
-        return QModelIndex()
+        return self.createIndex(row, column, item)
 
     @overload
     def parent(self, child: QModelIndex) -> QModelIndex:
