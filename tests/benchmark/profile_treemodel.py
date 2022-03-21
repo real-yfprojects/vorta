@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 
 from peewee import SqliteDatabase
 from pkg_resources import parse_version
-from PyQt5.QtCore import QAbstractItemModel, QModelIndex
+from PyQt5.QtCore import QAbstractItemModel, QModelIndex, Qt
 from PyQt5.QtWidgets import QTreeView
 
 from vorta.borg.diff import BorgDiffJob
@@ -81,10 +81,13 @@ def walk_model(model: QAbstractItemModel):
         index = indices.pop()
 
         if index != QModelIndex():
-            model.data(index)
+            model.data(index, Qt.ItemDataRole.DisplayRole)
             model.columnCount(index)
 
         rc = model.rowCount(index)
+
+        if rc and model.canFetchMore(index):
+            model.fetchMore(index)
 
         for i in range(rc):
             indices.append(model.index(i, 0, index))
@@ -144,6 +147,15 @@ def main(repo, a1, a2):
                         'profile_stats-newlines')
         cProfile.runctx('run_old_nojson(nojson_lines)', globals(), locals(),
                         'profile_stats-oldlines')
+
+        # profile old model in view
+        oldmodel = old_diff_result.DiffTree
+        attributes, nested_files = old_diff_result.parse_diff_json_lines(
+            json_lines)
+        oldmodel = old_diff_result.DiffTree(attributes, nested_files)
+
+        cProfile.runctx('walk_model(oldmodel)', globals(), locals(),
+                        'profile_stats-oldtree')
 
         # profile model in view
         model = diff_result.DiffTree()
