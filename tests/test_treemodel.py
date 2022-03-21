@@ -34,7 +34,7 @@ class TestFileSystemItem:
         item.add(child)
 
         assert len(item.children) == 1
-        assert next(iter(item.children)) == child
+        assert item.children[0] == child
         assert child.subpath == 'hello'
         assert child._parent == item
 
@@ -81,10 +81,12 @@ class TestFileSystemItem:
 
         # get subpath
         res = item.get('a')
-        assert res == child1
+        assert res is not None
+        assert res[1] == child1
 
         res = item.get('b')
-        assert res == child2
+        assert res is not None
+        assert res[1] == child2
 
         # get subpath of empty list
         assert child1.get('a') is None
@@ -149,7 +151,7 @@ class TestFileTreeModel:
         item1 = model.getItem(('test',))
         item2 = model.getItem(PurePath('test/subtest'))
 
-        index1 = model.index(0, 0)
+        index1 = model.index(1, 0)
         assert index1.internalPointer() == item1
         assert index1 == model.indexPath(PurePath('test'))
         index2 = model.index(0, 0, index1)
@@ -255,7 +257,7 @@ class TestFileTreeModel:
 
         a = model.index(0, 0)
         assert model.rowCount(a) == 3
-        ab = model.index(2, 0, a)
+        ab = model.index(1, 0, a)
         assert model.rowCount(ab) == 2
         assert model.parent(ab) == a
 
@@ -266,9 +268,9 @@ class TestFileTreeModel:
         assert cab.internalPointer().data == 11
         assert model.rowCount(cab) == 3
         assert model.parent(cab) == QModelIndex()
-        cabc = model.index(0, 0, cab)
-        cababc = model.index(1, 0, cab)
-        cabbca = model.index(2, 0, cab)
+        cabc = model.index(2, 0, cab)
+        cababc = model.index(0, 0, cab)
+        cabbca = model.index(1, 0, cab)
         assert cababc.internalPointer().data == 14
         assert model.parent(cababc).internalId() == cab.internalId()
         assert cabbca.internalPointer().data == 15
@@ -288,7 +290,7 @@ class TestFileTreeModel:
         assert ca.internalPointer().data == 10
         assert ca.parent() == QModelIndex()
         assert model.rowCount(ca) == 2
-        caa = model.index(1, 0, ca)
+        caa = model.index(0, 0, ca)
         assert caa.internalPointer().data == 31
         assert caa.parent().internalId() == ca.internalId()
 
@@ -311,7 +313,6 @@ class TestFileTreeModel:
         assert index.parent() == a
 
         index = model.indexPath(PurePath('c/a/b'))
-        print(index.internalPointer().path)
         assert model.parent(index) == QModelIndex()
         assert index.internalPointer().data == 11
         assert model.rowCount(index) == 3

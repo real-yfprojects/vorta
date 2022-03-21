@@ -3,12 +3,13 @@ Implementation of a tree model for use with `QTreeView` based on (file) paths.
 
 """
 
+import bisect
 import enum
 import os.path as osp
 from functools import reduce
 from pathlib import PurePath
-from typing import (Dict, Generic, List, Optional, Sequence, Tuple, TypeVar,
-                    Union, overload)
+from typing import (Generic, List, Optional, Sequence, Tuple, TypeVar, Union,
+                    overload)
 
 from PyQt5.QtCore import QAbstractItemModel, QModelIndex, QObject, Qt
 
@@ -64,28 +65,32 @@ class FileSystemItem(Generic[T]):
     _parent : FileSystemItem or None
         The parent of the item.
     """
-    __slots__ = ['path', 'child_map', 'data', '_parent']
+    __slots__ = ['path', 'children', 'data', '_parent', 'subpath']
 
     def __init__(self, path: PathLike, data: T):
         """Init."""
         self.path: Path = tuple(path)
         self.data = data
-        self.child_map: Dict[str, FileSystemItem[T]] = dict()
+        self.subpath: str = None
+        self.children: List[FileSystemItem[T]] = []
         self._parent: Optional[FileSystemItem[T]] = None
 
-    @property
-    def subpath(self) -> str:
-        """
-        Get the name of the item which is the subpath relative to its parent.
-        """
-        return self.path[-1]
+    # @property
+    # def subpath(self) -> str:
+    #     """
+    #     Get the name of the item which is the subpath relative to its parent.
+    #     """
+    #     return self.path[-1]
 
-    @property
-    def children(self):
-        """Get an iterable view of the item's children."""
-        return self.child_map.values()
+    # @property
+    # def children(self):
+    #     """Get an iterable view of the item's children."""
+    #     return self.child_map.values()
 
-    def add(self, child: 'FileSystemItem[T]', _subpath: str = None):
+    def add(self,
+            child: 'FileSystemItem[T]',
+            _subpath: str = None,
+            _check: bool = True):
         """
         Add a child.
 
@@ -102,15 +107,22 @@ class FileSystemItem(Generic[T]):
         _check : bool, optional
             Whether to check for children with the same subpath (using `get`).
         """
-        child._parent = self
+        if _subpath is not None:
+            child.subpath = _subpath
+        else:
+            child.subpath = path_to_str(relative_path(self.path, child.path))
 
-        if _subpath is None:
-            _subpath = child.path[-1]
+        i = bisect.bisect(self.children, child)
 
-        # check for a child with the same subpath and add child to children
-        if self.child_map.setdefault(_subpath, child) is not child:
+        # check for a child with the same subpath
+        if _check and len(self.children) > i - 1 >= 0 \
+                and self.children[i - 1].subpath == child.subpath:
             raise RuntimeError(
                 "The subpath must be unique to a parent's children.")
+
+        # add
+        child._parent = self
+        self.children.insert(i, child)
 
     def addChildren(self, children: List['FileSystemItem[T]']):
         """
@@ -129,10 +141,14 @@ class FileSystemItem(Generic[T]):
         pass
 
     @overload
+    def remove(self, index: int) -> None:
+        pass
+
+    @overload
     def remove(self, child: 'FileSystemItem[T]') -> None:
         pass
 
-    def remove(self, child_or_subpath):
+    def remove(self, child_subpath_index):
         """
         Remove the given children.
 
@@ -151,19 +167,28 @@ class FileSystemItem(Generic[T]):
         IndexError
             The given index is not a valid one.
         """
-        if isinstance(child_or_subpath, FileSystemItem):
-            child = child_or_subpath
-            del self.child_map[child.subpath]
+        if isinstance(child_subpath_index, FileSystemItem):
+            child = child_subpath_index
+            i = bisect.bisect_left(self.children, child)
+            if i < len(self.children) and self.children[i] == child:
+                del self.children[i]
 
-        elif isinstance(child_or_subpath, str):
-            subpath = child_or_subpath
-            del self.child_map[subpath]
+        elif isinstance(child_subpath_index, str):
+            subpath = child_subpath_index
+            i = bisect.bisect_left(self.children, subpath)
+            if i < len(self.children) and self.children[i].subpath == subpath:
+                del self.children[i]
+
+        elif isinstance(child_subpath_index, int):
+            i = child_subpath_index
+            del self.children[i]
 
         else:
             raise TypeError(
                 "First argument passed to `{}.remove` has invalid type {}".
-                format(type(self).__name__,
-                       type(child_or_subpath).__name__))
+                format(
+                    type(self).__name__,
+                    type(child_subpath_index).__name__))
 
     def __getitem__(self, index: int):
         """
@@ -183,7 +208,7 @@ class FileSystemItem(Generic[T]):
         self,
         subpath: str,
         default: Optional[A] = None
-    ) -> Union['FileSystemItem[T]', Optional[A]]:
+    ) -> Union[Tuple[int, 'FileSystemItem[T]'], Optional[A]]:
         """
         Find direct child with given subpath.
 
@@ -199,7 +224,12 @@ class FileSystemItem(Generic[T]):
         Tuple[int, FileSystemItem] or None
             The index and item if found else `default`.
         """
-        return self.child_map.get(subpath, default)
+        i = bisect.bisect_left(self.children, subpath)
+        if i < len(self.children):
+            child = self.children[i]
+            if child.subpath == subpath:
+                return i, child
+        return default
 
     def get_path(self, path: PathLike) -> Optional['FileSystemItem[T]']:
         """
@@ -210,13 +240,15 @@ class FileSystemItem(Generic[T]):
         path : Path
             The subpath.
         """
+
         def walk(fsi, pp):
             if fsi is None:
                 return None
-            child = fsi.get(pp)
-            if not child:
+            res = fsi.get(pp)
+            if not res:
                 return None
-            return child
+            i, item = res
+            return item
 
         fsi = reduce(walk, path, self)
         return fsi
@@ -227,8 +259,34 @@ class FileSystemItem(Generic[T]):
             self.path,
             self.subpath,
             self.data,
-            [k for k in self.child_map],
+            [c.subpath for c in self.children],
         )
+
+    def __lt__(self, other):
+        """Lower than for bisect sorting."""
+        if isinstance(other, FileSystemItem):
+            return self.subpath < other.subpath
+        if isinstance(other, (list, tuple)):
+            for s, o in zip(self.path, other):
+                if s != o:
+                    return s < o
+            else:
+                return len(self.path) < len(other)
+        else:
+            return self.subpath < other
+
+    def __gt__(self, other):
+        """Greater than for bisect sorting."""
+        if isinstance(other, FileSystemItem):
+            return self.subpath > other.subpath
+        if isinstance(other, (list, tuple)):
+            for s, o in zip(self.path, other):
+                if s != o:
+                    return s > o
+            else:
+                return len(self.path) > len(other)
+        else:
+            return self.subpath > other
 
 
 class FileTreeModel(QAbstractItemModel, Generic[T]):
@@ -253,6 +311,7 @@ class FileTreeModel(QAbstractItemModel, Generic[T]):
     headerData
 
     """
+
     class DisplayMode(enum.Enum):
         """
         The tree display modes available for the model.
@@ -350,17 +409,19 @@ class FileTreeModel(QAbstractItemModel, Generic[T]):
         FileSystemItem
             [description]
         """
-        child = item.get(path_part)
-        if child:
+        res = item.get(path_part)
+        if res:
+            i, child = res
             if data is not None:
                 self._merge_data(child, data)
         else:
             child = self._make_filesystemitem(path, data)
 
             if self._flat_filter(child):
-                self._flattened.append(child)
+                i = bisect.bisect(self._flattened, child.path)
+                self._flattened.insert(i, child)
 
-            item.add(child, _subpath=path_part)
+            item.add(child, _subpath=path_part, _check=False)
 
             # update parent data
             self._process_child(child)
@@ -449,18 +510,26 @@ class FileTreeModel(QAbstractItemModel, Generic[T]):
         if not parent:
             return
 
-        item = parent.get(path[-1])
+        res = parent.get(path[-1])
 
-        if not item:
+        if not res:
             return
 
-        # remove children in flat representation
-        for child in item.children:
-            self._flattened.remove(child)
+        i, item = res
 
-        # remove item
-        parent.remove(path[-1])
-        self._flattened.remove(item)
+        # remove item and its children in flat representation
+        items_to_remove: List[FileSystemItem] = [item]
+        while items_to_remove:
+            to_remove = items_to_remove.pop()
+
+            fi = bisect.bisect_left(self._flattened, to_remove.path)
+            if fi < len(self._flattened) and self._flattened[fi] is to_remove:
+                del self._flattened[fi]
+
+            items_to_remove.extend(to_remove.children)
+
+        # remove item from tree representation
+        parent.remove(i)
 
         self.endResetModel()
 
@@ -518,7 +587,9 @@ class FileTreeModel(QAbstractItemModel, Generic[T]):
         """
         return True
 
-    def getItem(self, path: Union[PurePath, PathLike]) -> Optional[FileSystemItem[T]]:
+    def getItem(
+            self, path: Union[PurePath,
+                              PathLike]) -> Optional[FileSystemItem[T]]:
         """
         Get the item with the given path.
 
@@ -635,9 +706,9 @@ class FileTreeModel(QAbstractItemModel, Generic[T]):
 
         # flat mode
         if self.mode == self.DisplayMode.FLAT:
-            for i, item in enumerate(self._flattened):
-                if item.path == path:
-                    return self.index(i, 0)
+            i = bisect.bisect_left(self._flattened, path)
+            if i < len(self._flattened) and self._flattened[i].path == path:
+                return self.index(i, 0)
             return QModelIndex()
 
         # tree mode
@@ -649,8 +720,7 @@ class FileTreeModel(QAbstractItemModel, Generic[T]):
             if not item:
                 return index, None
 
-            child = item.get(subpath)
-            r = list(item.children).index(child)
+            r, child = item.get(subpath)
 
             if not child:
                 return QModelIndex(), None
@@ -708,7 +778,7 @@ class FileTreeModel(QAbstractItemModel, Generic[T]):
         if self.mode == self.DisplayMode.SIMPLIFIED_TREE:
             # combine items with a single child with that child
             while len(item.children) == 1 and self._simplify_filter(item):
-                item = next(iter(item.children))
+                item = item.children[0]
 
         if (0 <= row < len(parent_item.children)
                 and 0 <= column < self.columnCount(parent)):
@@ -771,7 +841,7 @@ class FileTreeModel(QAbstractItemModel, Generic[T]):
             # Never return root item since it shouldn't be displayed
             return QModelIndex()
 
-        row = list(parent_item._parent.children).index(parent_item)
+        row, item = parent_item._parent.get(parent_item.subpath)
         return self.createIndex(row, 0, parent_item)
 
     def flags(self, index: QModelIndex) -> Qt.ItemFlags:
