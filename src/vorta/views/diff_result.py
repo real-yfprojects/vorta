@@ -1,14 +1,15 @@
 import json
 import os
 import re
+from pprint import pprint
 
 from PyQt5 import uic
 from PyQt5.QtCore import Qt, QVariant
 from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import QHeaderView
 
-from vorta.utils import (get_asset, get_dict_from_list, nested_dict, uses_dark_mode)
-
+from vorta.utils import (get_asset, get_dict_from_list, nested_dict,
+                         uses_dark_mode)
 from vorta.views.partials.tree_view import TreeModel
 
 uifile = get_asset('UI/diffresult.ui')
@@ -110,7 +111,14 @@ def parse_diff_json_lines(diffs):
                     #                                       change['new_user'], change['new_group'])
                     change_type = 'modified'
                     change_type_priority = 1
-        assert change_type  # either no changes, or unrecognized change(s)
+
+        if not change_type:
+            print('---- DEBUG-#1228 ')
+            print("ChangeType:", change_type)
+            print("Changes:", item['changes'])
+            print('Item', pprint(item))
+            print('---- END')
+            raise Exception("Unknown change_type. Look into the logs!")
 
         files_with_attributes.append((size, change_type, name, dirpath, file_type))
 
