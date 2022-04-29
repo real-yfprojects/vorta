@@ -51,7 +51,7 @@ class VortaSecretStorageKeyring(VortaKeyring):
             asyncio.set_event_loop(asyncio.new_event_loop())
             attributes = {'application': 'Vorta', 'service': service, 'repo_url': repo_url}
             items = list(self.collection.search_items(attributes))
-            logger.debug('Found %i passwords matching repo URL.', len(items))
+            logger.debug('Found %i passwords matching repo %s.', len(items), repo_url)
             if len(items) > 0:
                 item = items[0]
                 if item.is_locked() and item.unlock():

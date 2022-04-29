@@ -1,5 +1,6 @@
-from .borg_job import BorgJob, FakeProfile, FakeRepo
 from vorta.store.models import RepoModel
+
+from .borg_job import BorgJob, FakeProfile, FakeRepo
 
 
 class BorgInitJob(BorgJob):
@@ -47,6 +48,12 @@ class BorgInitJob(BorgJob):
                     'extra_borg_arguments': result['params']['extra_borg_arguments'],
                 }
             )
+            print(f"Creating repo {result['params']['repo_url']}")
             if new_repo.encryption != 'none':
+                print("Storing password")
                 self.keyring.set_password("vorta-repo", new_repo.url, result['params']['password'])
+                print("Stored password")
             new_repo.save()
+            print("Saved repo")
+
+        print(f"Init for {result['params']['repo_url']} returned {result['returncode']}")
