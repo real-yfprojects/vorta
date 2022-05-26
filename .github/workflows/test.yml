@@ -22,24 +22,13 @@ jobs:
         os: [ubuntu-18.04, ubuntu-latest, macos-latest]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v1
+      uses: actions/setup-python@v3
       with:
         python-version: ${{ matrix.python-version }}
-
-    - name: Get pip cache dir
-      id: pip-cache
-      run: |
-        echo "::set-output name=dir::$(pip cache dir)"
-    - name: pip cache
-      uses: actions/cache@v2
-      with:
-        path: ${{ steps.pip-cache.outputs.dir }}
-        key: ${{ runner.os }}-pip-${{ hashFiles('setup.cfg', 'requirements.d/**') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-
+        cache: pip
+        
     - name: Install system dependencies (Linux)
       if: runner.os == 'Linux'
       run: |
@@ -51,6 +40,7 @@ jobs:
       if: runner.os == 'macOS'
       run: |
         brew install openssl readline xz borgbackup
+        
     - name: Install Vorta
       run: |
         pip install -e .
