@@ -1,9 +1,12 @@
 import logging
 import os
 from pathlib import PurePath
+from typing import cast
 
 from PyQt5 import QtCore, QtGui, uic
-from PyQt5.QtCore import QFileInfo, QMimeData, QPoint, Qt, QUrl, pyqtSlot
+from PyQt5.QtCore import (QEvent, QFileInfo, QMimeData, QObject, QPoint, Qt,
+                          QUrl, pyqtSlot)
+from PyQt5.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent
 from PyQt5.QtWidgets import (QApplication, QHeaderView, QMenu, QMessageBox,
                              QShortcut, QTableWidgetItem)
 
@@ -70,6 +73,7 @@ class SourceTab(SourceBase, SourceUI, BackupProfileMixin):
             Qt.ContextMenuPolicy.CustomContextMenu)
         self.sourceFilesWidget.customContextMenuRequested.connect(
             self.sourceitem_contextmenu)
+        self.sourceFilesWidget.installEventFilter(self)
 
         # Prepare add button
         self.addMenu = QMenu(self.addButton)
@@ -86,6 +90,10 @@ class SourceTab(SourceBase, SourceUI, BackupProfileMixin):
         shortcut_copy = QShortcut(QtGui.QKeySequence.StandardKey.Copy,
                                   self.sourceFilesWidget)
         shortcut_copy.activated.connect(self.source_copy)
+
+        shortcut_paste = QShortcut(QtGui.QKeySequence.StandardKey.Paste,
+                                   self.sourceFilesWidget)
+        shortcut_paste.activated.connect(self.paste_text)
 
         # Connect signals
         self.removeButton.clicked.connect(self.source_remove)
@@ -339,6 +347,26 @@ class SourceTab(SourceBase, SourceUI, BackupProfileMixin):
         profile = self.profile()
         profile.exclude_if_present = self.excludeIfPresentField.toPlainText()
         profile.save()
+
+    def eventFilter(self, object: QObject, event: QEvent):
+        if event.type() == QEvent.Type.DragEnter:
+            event = cast(QDragEnterEvent, event)
+            mimedata = event.mimeData()
+            if mimedata.hasText() or mimedata.hasUrls():
+                event.accept()
+                return False
+        elif event.type() == QEvent.Type.DragMove:
+            event = cast(QDragMoveEvent, event)
+            mimedata = event.mimeData()
+            if mimedata.hasText() or mimedata.hasUrls():
+                event.accept()
+                return False
+        elif event.type() == QEvent.Type.Drop:
+            print("DROP")
+            event = cast(QDropEvent, event)
+            event.mimeData()
+
+        return True
 
     def paste_text(self):
         sources = QApplication.clipboard().text().splitlines()
