@@ -345,14 +345,22 @@ class VortaScheduler(QtCore.QObject):
     def next_job(self):
         now = dt.now()
 
-        def is_scheduled(timer):
-            return timer["type"] == ScheduleStatusType.SCHEDULED and timer["qtt"].isActive() and timer["dt"] >= now
+        def is_running(timer):
+            return not timer["qtt"].isActive() and timer["dt"] >= now
 
-        scheduled = {profile_id: timer for profile_id, timer in self.timers.items() if is_scheduled(timer)}
+        def is_scheduled(item):
+            pid, timer = item
+            return timer["type"] != ScheduleStatusType.SCHEDULED and is_running(timer)
+
+        run_out = ((pid, timer) for pid, timer in self.timers.items() if is_running(timer))
+        for pid, dummy in run_out:
+            self.set_timer_for_profile(pid)
+
+        scheduled = tuple(filter(is_scheduled, self.timers.items()))
         if len(scheduled) == 0:
             return self.tr("None scheduled")
 
-        closest_job = min(scheduled.items(), key=lambda item: item[1]["dt"])
+        closest_job = min(scheduled, key=lambda item: item[1]["dt"])
         profile_id, timer = closest_job
         time = timer["dt"]
         profile = BackupProfileModel.get_or_none(id=profile_id)
@@ -396,6 +404,7 @@ class VortaScheduler(QtCore.QObject):
                 job = BorgCreateJob(msg['cmd'], msg, profile.repo.id)
                 job.result.connect(self.notify)
                 self.app.jobs_manager.add_job(job)
+                self.remove_job(profile_id)
             else:
                 logger.error('Conditions for backup not met. Aborting.')
                 logger.error(msg['message'])
