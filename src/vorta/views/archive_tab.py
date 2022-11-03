@@ -4,29 +4,28 @@ from datetime import timedelta
 
 from PyQt5 import QtCore, uic
 from PyQt5.QtGui import QDesktopServices
-from PyQt5.QtWidgets import (QHeaderView, QMessageBox, QTableView,
-                             QTableWidgetItem, QInputDialog, QMenu,
-                             QToolButton)
+from PyQt5.QtWidgets import (QHeaderView, QInputDialog, QMenu, QMessageBox,
+                             QTableView, QTableWidgetItem, QToolButton)
 
 from vorta.borg.check import BorgCheckJob
 from vorta.borg.delete import BorgDeleteJob
 from vorta.borg.diff import BorgDiffJob
 from vorta.borg.extract import BorgExtractJob
+from vorta.borg.info_archive import BorgInfoArchiveJob
 from vorta.borg.list_archive import BorgListArchiveJob
 from vorta.borg.list_repo import BorgListRepoJob
-from vorta.borg.info_archive import BorgInfoArchiveJob
 from vorta.borg.mount import BorgMountJob
 from vorta.borg.prune import BorgPruneJob
-from vorta.borg.umount import BorgUmountJob
 from vorta.borg.rename import BorgRenameJob
+from vorta.borg.umount import BorgUmountJob
 from vorta.i18n import trans_late
 from vorta.store.models import ArchiveModel, BackupProfileMixin
 from vorta.utils import (choose_file_dialog, format_archive_name, get_asset,
                          get_mount_points, pretty_bytes)
-from vorta.views.source_tab import SizeItem
 from vorta.views.diff_dialog import DiffDialog
 from vorta.views.diff_result import DiffResult
 from vorta.views.extract_dialog import ExtractDialog
+from vorta.views.source_tab import SizeItem
 from vorta.views.utils import get_colored_icon
 
 uifile = get_asset('UI/archivetab.ui')
@@ -328,6 +327,9 @@ class ArchiveTab(ArchiveTabBase, ArchiveTabUI, BackupProfileMixin):
     def umount_action(self):
         archive_name = self.selected_archive_name()
         mount_point = self.mount_points.get(archive_name)
+        print("Selected archive:", archive_name)
+        print("Mountpoint:", mount_point)
+        print("Mountpoints:", self.mount_points)
 
         if mount_point is not None:
             profile = self.profile()
