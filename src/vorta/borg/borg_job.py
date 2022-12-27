@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import select
 import shlex
 import shutil
@@ -12,7 +13,7 @@ from datetime import datetime as dt
 from subprocess import PIPE, Popen, TimeoutExpired
 from threading import Lock
 from PyQt5 import QtCore
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QMessageBox
 from vorta import application
 from vorta.borg.jobs_manager import JobInterface
 from vorta.i18n import trans_late, translate
@@ -20,6 +21,8 @@ from vorta.keyring.abc import VortaKeyring
 from vorta.keyring.db import VortaDBKeyring
 from vorta.store.models import BackupProfileMixin, EventLogModel
 from vorta.utils import borg_compat, pretty_bytes
+
+NETWORK_ERROR_REGEX = re.compile('ConnectionClosed|BrokenPipeError')
 
 keyring_lock = Lock()
 db_lock = Lock()
@@ -315,6 +318,21 @@ class BorgJob(JobInterface, BackupProfileMixin):
         with db_lock:
             log_entry.save()
             self.process_result(result)
+
+        # general error handler
+        if p.returncode == 2 and error_messages:  # Real error
+            error = error_messages[-1]
+            error_message = error[1]
+            if error[0] > logging.WARNING and NETWORK_ERROR_REGEX.search(error_message):
+                # Create QMessageBox
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Icon.Critical)  # changed for warning
+                msg.setStandardButtons(QMessageBox.Ok)
+                msg.setWindowTitle(self.tr('Network Error'))
+                msg.setText(self.tr('The connection to the server was closed:'))
+                msg.setInformativeText(error_message)
+                # Display messagebox
+                msg.exec()
 
         self.finished_event(result)
         for tmpfile in self.cleanup_files:
