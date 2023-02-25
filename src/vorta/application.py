@@ -127,8 +127,9 @@ class VortaApp(QtSingleApplication):
         self.main_window.activateWindow()
 
     def toggle_main_window_visibility(self):
+        """Toggle window visibility e.g. when clicking on the tray icon."""
         if self.main_window.isVisible():
-            self.main_window.close()
+            self.main_window.hide()  # do not show 'run in background' dialog
         else:
             self.open_main_window_action()
 
