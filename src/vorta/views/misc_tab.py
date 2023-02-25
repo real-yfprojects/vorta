@@ -1,4 +1,6 @@
 import logging
+from typing import Dict
+from playhouse import signals
 from PyQt5 import uic
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QCheckBox, QFormLayout, QLabel, QSizePolicy, QSpacerItem
@@ -20,6 +22,8 @@ class MiscTab(MiscTabBase, MiscTabUI, BackupProfileMixin):
         """Init."""
         super().__init__(parent)
         self.setupUi(parent)
+        self.settings_checkboxes: Dict[str, QCheckBox] = {}
+
         self.versionLabel.setText(__version__)
         self.logLink.setText(
             f'<a href="file://{LOG_DIR}"><span style="text-decoration:' 'underline; color:#0984e3;">Log</span></a>'
@@ -30,6 +34,10 @@ class MiscTab(MiscTabBase, MiscTabUI, BackupProfileMixin):
         self.checkboxLayout.setHorizontalSpacing(8)
         self.checkboxLayout.setContentsMargins(0, 0, 0, 12)
         self.checkboxLayout.setFormAlignment(Qt.AlignmentFlag.AlignHCenter)
+
+        # connect to settings model update
+        # the decorator doesn't work on methods
+        signals.post_save.connect(self.on_setting_update, sender=SettingsModel)
 
         self.populate()
 
@@ -78,15 +86,50 @@ class MiscTab(MiscTabBase, MiscTabUI, BackupProfileMixin):
 
                 # create widget
                 cb = QCheckBox(translate('settings', setting.label))
-                cb.setCheckState(setting.value)
+                cb.setChecked(setting.value)
                 cb.setTristate(False)
                 cb.stateChanged.connect(lambda v, key=setting.key: self.save_setting(key, v))
 
                 # add widget
+                self.settings_checkboxes[setting.key] = cb
                 self.checkboxLayout.setWidget(i, QFormLayout.ItemRole.FieldRole, cb)
 
                 # increase i
                 i += 1
+
+    def on_setting_update(self, sender, instance: SettingsModel, created=False):
+        """
+        Handle a update of the settings db.
+
+        Non-PyQt slot for peewee's `playhouse.signals` api.
+        It calls `update_checkbox`.
+
+        Parameters
+        ----------
+        sender : Type[SettingsModel]
+            table sending model
+        instance : SettingsModel
+            The model instance (row) saved.
+        created : bool, optional
+            Whether it was newly created, by default False
+        """
+        if not created and instance.type == 'checkbox':
+            self.update_checkbox(instance.key, instance.value)
+
+    def update_checkbox(self, key, value):
+        """
+        Update the checkbox for a setting with a given key.
+
+        Parameters
+        ----------
+        key : str
+            The key of the setting to update.
+        value : bool
+            The value to set the checkbox to.
+        """
+        checkbox = self.settings_checkboxes[key]
+        if checkbox:
+            checkbox.setChecked(value)
 
     def save_setting(self, key, new_value):
         setting = SettingsModel.get(key=key)
